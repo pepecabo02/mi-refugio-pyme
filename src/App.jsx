@@ -205,16 +205,22 @@ function generateForecast(alloc, horizon) {
 
 const fmt = n => new Intl.NumberFormat("es-ES",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n);
 const fmtPct = n => (n>0?"+":"")+Number(n).toFixed(1)+"%";
+const fmtNum = n => new Intl.NumberFormat("es-ES").format(n);
 const cardStyle = (extra) => Object.assign({background:P.surface,border:"1px solid "+P.border,borderRadius:14,padding:20}, extra);
 const labelStyle = {fontSize:11,letterSpacing:3,color:P.gold,textTransform:"uppercase",marginBottom:14};
 
-function KPI({title, value, sub, good}) {
+function useIsMobile() {
+  const [isMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 760 : false);
+  return isMobile;
+}
+
+function KPI({title, value, sub, good, minWidth}) {
   const color = good === undefined ? P.text : good ? P.green : P.red;
   return (
-    <div style={cardStyle({textAlign:"center",flex:1,minWidth:140})}>
-      <div style={{fontSize:11,color:P.muted,marginBottom:6}}>{title}</div>
-      <div style={{fontSize:20,fontWeight:700,color}}>{value}</div>
-      {sub && <div style={{fontSize:11,color:P.muted,marginTop:4}}>{sub}</div>}
+    <div style={cardStyle({textAlign:"center",flex:1,minWidth:minWidth||140,padding:"14px 12px"})}>
+      <div style={{fontSize:10.5,color:P.muted,marginBottom:6,lineHeight:1.3}}>{title}</div>
+      <div style={{fontSize:18,fontWeight:700,color,wordBreak:"break-word"}}>{value}</div>
+      {sub && <div style={{fontSize:10.5,color:P.muted,marginTop:4}}>{sub}</div>}
     </div>
   );
 }
@@ -224,12 +230,12 @@ function Tag({cat}) {
   return <span style={{fontSize:10,background:c+"18",color:c,border:"1px solid "+c+"33",borderRadius:5,padding:"2px 7px"}}>{cat}</span>;
 }
 
-function AllocSlider({asset, color, value, onChange}) {
+function AllocSlider({asset, flag, color, value, onChange}) {
   const c = color || P.blue;
   return (
     <div style={{marginBottom:10}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
-        <span style={{fontSize:12,color:P.text,fontWeight:600}}>{asset}</span>
+        <span style={{fontSize:12,color:P.text,fontWeight:600}}>{flag?flag+" ":""}{asset}</span>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           <input type="number" min={0} max={100} value={value} onChange={e => onChange(+e.target.value)}
             style={{width:46,padding:"2px 4px",border:"1px solid "+P.border,borderRadius:5,textAlign:"center",fontSize:12,color:P.text,background:P.surface2,fontFamily:"inherit"}}/>
@@ -246,12 +252,13 @@ const INIT_ALLOC = {ibex:60,oro:15,nzx:10,klci:0,ipsa:0,idx:10,psei:0,sempra:5,v
 const PRESETS = [
   {label:"A — 100% IBEX",        a:{ibex:100,oro:0, nzx:0, klci:0,ipsa:0,idx:0, psei:0,sempra:0,vnindex:0,plata:0, mitsui:0}},
   {label:"B — Óptima",           a:{ibex:60, oro:20,nzx:10,klci:0,ipsa:0,idx:10,psei:0,sempra:0,vnindex:0,plata:0, mitsui:0}},
-  {label:"C — Máx. Refugio",     a:{ibex:15, oro:40,nzx:20,klci:5,ipsa:0,idx:15,psei:0,sempra:0,vnindex:0,plata:10,mitsui:0}},
+  {label:"C — Máx. Refugio",     a:{ibex:15, oro:40,nzx:20,klci:5,ipsa:0,idx:15,psei:0,sempra:0,vnindex:0,plata:5, mitsui:0}},
 ];
 
 const ASSET_COLORS = {ibex:"#888",oro:P.gold,nzx:P.blue,klci:"#5ba3c9",ipsa:"#7b68c8",idx:"#4a90c4",psei:"#8e6bbf",sempra:P.green,vnindex:"#e07b39",plata:"#9aabbb",mitsui:"#6ab187"};
 
 export default function App() {
+  const isMobile = useIsMobile();
   const [tab, setTab]       = useState("scoring");
   const [weights, setWeights] = useState(WEIGHTS_DEFAULT);
   const [crisis, setCrisis] = useState("subprime");
@@ -293,17 +300,22 @@ export default function App() {
 
   const tooltipStyle = {background:P.surface,border:"1px solid "+P.border,borderRadius:8,fontFamily:"Nunito"};
 
+  const gridCols = isMobile ? "1fr" : "320px 1fr";
+  const kpiMinWidth = isMobile ? "calc(50% - 6px)" : 140;
+  const headerPad = isMobile ? "16px 14px 0" : "22px 32px 0";
+  const bodyPad = isMobile ? "18px 12px" : "28px 32px";
+
   const AllocPanel = (
-    <div style={cardStyle({minWidth:260})}>
+    <div style={cardStyle({minWidth:isMobile?"auto":260})}>
       <div style={labelStyle}>Cartera personalizada</div>
       <div style={{marginBottom:14,padding:"10px 14px",background:P.surface2,borderRadius:10,textAlign:"center",border:"1px solid "+(allocOk?P.green+"44":P.red+"44")}}>
         <div style={{fontSize:11,color:P.muted,marginBottom:3}}>Total asignado</div>
         <div style={{fontSize:26,fontWeight:700,color:allocOk?P.green:P.red}}>{totalAlloc}%</div>
         {!allocOk && <div style={{fontSize:11,color:P.red}}>Debe sumar 100%</div>}
       </div>
-      <AllocSlider asset="IBEX 35"         color={ASSET_COLORS.ibex}    value={alloc.ibex}     onChange={v=>setA("ibex",v)}/>
+      <AllocSlider asset="IBEX 35" flag="🇪🇸" color={ASSET_COLORS.ibex}    value={alloc.ibex}     onChange={v=>setA("ibex",v)}/>
       {ASSETS.map(a => (
-        <AllocSlider key={a.id} asset={a.name} color={ASSET_COLORS[a.id]} value={alloc[a.id]} onChange={v=>setA(a.id,v)}/>
+        <AllocSlider key={a.id} asset={a.name} flag={a.flag} color={ASSET_COLORS[a.id]} value={alloc[a.id]} onChange={v=>setA(a.id,v)}/>
       ))}
       <div style={{marginTop:14,borderTop:"1px solid "+P.border,paddingTop:14}}>
         <div style={{fontSize:11,color:P.muted,marginBottom:8}}>Carteras de referencia (TFM):</div>
@@ -318,48 +330,55 @@ export default function App() {
   );
 
   const tabs = [
-    {id:"scoring",   label:"📊 Scoring"},
-    {id:"simulator", label:"🧪 Simulador Crisis"},
-    {id:"lifetime",  label:"📅 Histórico Completo"},
-    {id:"forecast",  label:"🔭 Proyección"},
-    {id:"compare",   label:"📈 Comparativa"},
-    {id:"guide",     label:"📖 Guía"},
+    {id:"scoring",   label:"📊 Scoring",         labelUpper:"SCORING"},
+    {id:"simulator", label:"🧪 Simulador Crisis", labelUpper:"SIMULADOR CRISIS"},
+    {id:"lifetime",  label:"📅 Histórico Completo", labelUpper:"HISTÓRICO COMPLETO"},
+    {id:"forecast",  label:"🔭 Proyección",       labelUpper:"PROYECCIÓN"},
+    {id:"compare",   label:"📈 Comparativa",      labelUpper:"COMPARATIVA"},
+    {id:"guide",     label:"📖 Guía",             labelUpper:"GUÍA"},
   ];
 
   return (
     <div style={{fontFamily:"'Nunito',system-ui,sans-serif",background:P.bg,color:P.text,minHeight:"100vh",fontWeight:300}}>
-      <div style={{background:P.surface,borderBottom:"1px solid "+P.border,padding:"22px 32px 0"}}>
+      <div style={{background:P.surface,borderBottom:"1px solid "+P.border,padding:headerPad}}>
         <div style={{maxWidth:1180,margin:"0 auto"}}>
           <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
             <div>
-              <div style={{fontSize:10,letterSpacing:4,color:P.gold,textTransform:"uppercase",marginBottom:5}}>Herramienta de Gestión de Tesorería · PYME</div>
-              <h1 style={{margin:0,fontSize:24,fontWeight:600,color:P.text}}>Refugio PYME <span style={{color:P.gold}}>·</span> Diversificación Corporativa</h1>
-              <p style={{margin:"5px 0 0",fontSize:12,color:P.muted}}>Análisis 2005–Mar 2026 · 10 activos · 3 episodios de crisis · proyección Monte Carlo</p>
+              <div style={{fontSize:isMobile?9:10,letterSpacing:isMobile?2:4,color:P.gold,textTransform:"uppercase",marginBottom:5}}>Herramienta de Gestión de Tesorería · PYME</div>
+              <h1 style={{margin:0,fontSize:isMobile?18:24,fontWeight:600,color:P.text,lineHeight:1.25}}>Refugio PYME <span style={{color:P.gold}}>·</span> Diversificación Corporativa</h1>
+              {!isMobile && <p style={{margin:"5px 0 0",fontSize:12,color:P.muted}}>Análisis 2005–Mar 2026 · 10 activos · 3 episodios de crisis · proyección Monte Carlo</p>}
             </div>
-            <div style={{background:P.surface2,border:"1px solid "+P.border,borderRadius:10,padding:"8px 16px",textAlign:"center"}}>
-              <div style={{fontSize:10,color:P.muted,letterSpacing:2,marginBottom:3}}>CAPITAL BASE</div>
-              <input type="number" value={capital} onChange={e => setCapital(+e.target.value)} step={100000}
-                style={{background:"none",border:"none",color:P.gold,fontSize:20,fontWeight:700,width:148,textAlign:"center",fontFamily:"inherit",outline:"none"}}/>
-              <div style={{fontSize:10,color:P.muted}}>euros</div>
+            <div style={{background:P.surface2,border:"1px solid "+P.border,borderRadius:10,padding:"8px 14px",textAlign:"center",flex:isMobile?"1 1 100%":"none"}}>
+              <div style={{fontSize:10,color:P.muted,letterSpacing:2,marginBottom:3}}>CAPITAL BASE (€)</div>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={fmtNum(capital)}
+                onChange={e => {
+                  const raw = e.target.value.replace(/[^\d]/g, "");
+                  setCapital(raw === "" ? 0 : +raw);
+                }}
+                style={{background:"none",border:"none",color:P.gold,fontSize:isMobile?18:20,fontWeight:700,width:isMobile?"100%":148,textAlign:"center",fontFamily:"inherit",outline:"none"}}/>
             </div>
           </div>
-          <div style={{display:"flex",gap:0,marginTop:18,overflowX:"auto"}}>
+          <div style={{display:"flex",gap:0,marginTop:isMobile?12:18,overflowX:"auto",WebkitOverflowScrolling:"touch",paddingBottom:isMobile?4:0}}>
             {tabs.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)} style={{
                 background:"transparent", color:tab===t.id?P.gold:P.muted,
                 border:"none", borderBottom:"3px solid "+(tab===t.id?P.gold:"transparent"),
-                padding:"10px 18px",cursor:"pointer",fontFamily:"inherit",fontSize:13,
-                fontWeight:tab===t.id?600:400,whiteSpace:"nowrap",transition:"all .15s",
-              }}>{t.label}</button>
+                padding:isMobile?"8px 10px":"14px 22px",cursor:"pointer",fontFamily:"inherit",fontSize:isMobile?11.5:17,
+                fontWeight:tab===t.id?700:500,whiteSpace:"nowrap",transition:"all .15s",flexShrink:isMobile?0:1,
+                letterSpacing:isMobile?0:0.5,textTransform:isMobile?"none":"uppercase",flex:isMobile?"none":1,textAlign:"center",
+              }}>{isMobile?t.label:t.labelUpper}</button>
             ))}
           </div>
         </div>
       </div>
 
-      <div style={{maxWidth:1180,margin:"0 auto",padding:"28px 32px"}}>
+      <div style={{maxWidth:1180,margin:"0 auto",padding:bodyPad}}>
 
         {tab === "scoring" && (
-          <div style={{display:"grid",gridTemplateColumns:"280px 1fr",gap:22}}>
+          <div style={{display:"grid",gridTemplateColumns:gridCols,gap:isMobile?16:22}}>
             <div style={cardStyle()}>
               <div style={labelStyle}>Ponderaciones del modelo</div>
               <div style={{fontSize:11,color:P.muted,marginBottom:14}}>
@@ -387,21 +406,21 @@ export default function App() {
                 {scored.map((a,i) => (
                   <div key={a.id}>
                     <div onClick={() => setShowRadar(showRadar===a.id?null:a.id)}
-                      style={cardStyle({padding:"12px 16px",cursor:"pointer",display:"grid",gridTemplateColumns:"36px 1fr auto",alignItems:"center",gap:12,borderLeft:"4px solid "+(CAT_COLORS[a.cat]||P.muted),boxShadow:showRadar===a.id?"0 0 0 2px "+P.gold+"55":"none"})}>
-                      <div style={{fontSize:20,fontWeight:700,color:i<3?P.gold:P.border,textAlign:"center"}}>{i+1}</div>
+                      style={cardStyle({padding:isMobile?"10px 12px":"12px 16px",cursor:"pointer",display:"grid",gridTemplateColumns:isMobile?"28px 1fr auto":"36px 1fr auto",alignItems:"center",gap:isMobile?8:12,borderLeft:"4px solid "+(CAT_COLORS[a.cat]||P.muted),boxShadow:showRadar===a.id?"0 0 0 2px "+P.gold+"55":"none"})}>
+                      <div style={{fontSize:isMobile?16:20,fontWeight:700,color:i<3?P.gold:P.border,textAlign:"center"}}>{i+1}</div>
                       <div>
-                        <span style={{fontWeight:600,fontSize:14,marginRight:8}}>{a.name}</span><Tag cat={a.cat}/>
-                        <div style={{fontSize:11,color:P.muted,marginTop:3}}>
+                        <span style={{fontWeight:600,fontSize:isMobile?12.5:14,marginRight:6}}>{a.flag?a.flag+" ":""}{a.name}</span><Tag cat={a.cat}/>
+                        {!isMobile && <div style={{fontSize:11,color:P.muted,marginTop:3}}>
                           Corr: {a.corr.toFixed(2)} · Sharpe: {a.sharpe.toFixed(2)} · Vol: {a.vol.toFixed(1)}% · Drawdown: {a.drawdown}%
-                        </div>
+                        </div>}
                       </div>
-                      <div style={{background:(a.computedScore>=7?P.green:a.computedScore>=5?P.gold:P.red)+"18",color:a.computedScore>=7?P.green:a.computedScore>=5?P.gold:P.red,border:"1px solid "+(a.computedScore>=7?P.green:a.computedScore>=5?P.gold:P.red)+"44",borderRadius:7,padding:"3px 10px",fontSize:13,fontWeight:700}}>
-                        {a.computedScore.toFixed(3)}
+                      <div style={{background:(a.computedScore>=7?P.green:a.computedScore>=5?P.gold:P.red)+"18",color:a.computedScore>=7?P.green:a.computedScore>=5?P.gold:P.red,border:"1px solid "+(a.computedScore>=7?P.green:a.computedScore>=5?P.gold:P.red)+"44",borderRadius:7,padding:isMobile?"3px 7px":"3px 10px",fontSize:isMobile?12:13,fontWeight:700}}>
+                        {a.computedScore.toFixed(2)}
                       </div>
                     </div>
                     {showRadar===a.id && (
                       <div style={cardStyle({borderTop:"none",borderTopLeftRadius:0,borderTopRightRadius:0,borderColor:P.gold+"44"})}>
-                        <ResponsiveContainer width="100%" height={200}>
+                        <ResponsiveContainer width="100%" height={isMobile?180:200}>
                           <RadarChart data={Object.keys(WEIGHT_LABELS).map(k => {
                             const vals = ASSETS.map(x => x[k]);
                             const mn = Math.min(...vals), mx = Math.max(...vals);
@@ -410,7 +429,7 @@ export default function App() {
                             return {subject:WEIGHT_LABELS[k].split(" ")[0], value:+norm.toFixed(1), fullMark:10};
                           })}>
                             <PolarGrid stroke={P.border}/>
-                            <PolarAngleAxis dataKey="subject" tick={{fill:P.muted,fontSize:10}}/>
+                            <PolarAngleAxis dataKey="subject" tick={{fill:P.muted,fontSize:isMobile?8:10}}/>
                             <Radar dataKey="value" stroke={P.gold} fill={P.gold} fillOpacity={0.2}/>
                           </RadarChart>
                         </ResponsiveContainer>
@@ -424,7 +443,7 @@ export default function App() {
         )}
 
         {tab === "simulator" && (
-          <div style={{display:"grid",gridTemplateColumns:"280px 1fr",gap:22}}>
+          <div style={{display:"grid",gridTemplateColumns:gridCols,gap:isMobile?16:22}}>
             <div style={{display:"flex",flexDirection:"column",gap:16}}>
               {AllocPanel}
               <div style={cardStyle()}>
@@ -439,21 +458,21 @@ export default function App() {
             </div>
             <div>
               <div style={labelStyle}>Resultado · {c.label}</div>
-              <div style={{display:"flex",gap:12,marginBottom:20,flexWrap:"wrap"}}>
-                <KPI title="Valor final (mi cartera)" value={fmt(simCrisis.final*capital/1000000)} good={simCrisis.final>=1000000}/>
-                <KPI title="Caída máxima" value={fmtPct(simCrisis.maxDrop)} good={simCrisis.maxDrop>-20}/>
-                <KPI title="vs. solo IBEX" value={fmt(simCrisis.vsA*capital/1000000)} good={simCrisis.vsA>0}/>
-                <KPI title="IBEX en esta crisis" value={fmtPct(c.ibexDrop)} good={false}/>
+              <div style={{display:"flex",gap:isMobile?8:12,marginBottom:20,flexWrap:"wrap"}}>
+                <KPI minWidth={kpiMinWidth} title="Valor final (mi cartera)" value={fmt(simCrisis.final*capital/1000000)} good={simCrisis.final>=1000000}/>
+                <KPI minWidth={kpiMinWidth} title="Caída máxima" value={fmtPct(simCrisis.maxDrop)} good={simCrisis.maxDrop>-20}/>
+                <KPI minWidth={kpiMinWidth} title="vs. solo IBEX" value={fmt(simCrisis.vsA*capital/1000000)} good={simCrisis.vsA>0}/>
+                <KPI minWidth={kpiMinWidth} title="IBEX en esta crisis" value={fmtPct(c.ibexDrop)} good={false}/>
               </div>
-              <div style={cardStyle()}>
-                <div style={{fontSize:12,color:P.muted,marginBottom:12}}>Evolución del capital durante la crisis (base = {fmt(capital)})</div>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={crisisChart}>
+              <div style={cardStyle({padding:isMobile?"14px 8px 14px 0":20})}>
+                <div style={{fontSize:12,color:P.muted,marginBottom:12,paddingLeft:isMobile?14:0}}>Evolución del capital durante la crisis (base = {fmt(capital)})</div>
+                <ResponsiveContainer width="100%" height={isMobile?260:300}>
+                  <LineChart data={crisisChart} margin={isMobile?{left:-15,right:8}:undefined}>
                     <CartesianGrid strokeDasharray="3 3" stroke={P.border}/>
-                    <XAxis dataKey="m" tick={{fill:P.muted,fontSize:11}}/>
-                    <YAxis tickFormatter={v => (v/1000000).toFixed(2)+"M"} tick={{fill:P.muted,fontSize:11}}/>
+                    <XAxis dataKey="m" tick={{fill:P.muted,fontSize:isMobile?9:11}}/>
+                    <YAxis tickFormatter={v => (v/1000000).toFixed(isMobile?1:2)+"M"} tick={{fill:P.muted,fontSize:isMobile?9:11}}/>
                     <Tooltip formatter={(v,n) => [fmt(v),n]} contentStyle={tooltipStyle} labelStyle={{color:P.gold,fontWeight:600}}/>
-                    <Legend/>
+                    {!isMobile && <Legend/>}
                     <ReferenceLine y={capital} stroke={P.border} strokeDasharray="4 4"/>
                     <Line dataKey="A" name="A – 100% IBEX" stroke="#aaa" strokeWidth={2} dot={false}/>
                     <Line dataKey="B" name="B – Óptima" stroke={P.blue} strokeWidth={2} dot={false}/>
@@ -461,6 +480,14 @@ export default function App() {
                     <Line dataKey="Custom" name="Mi cartera" stroke={P.gold} strokeWidth={3} dot={false}/>
                   </LineChart>
                 </ResponsiveContainer>
+                {isMobile && (
+                  <div style={{display:"flex",flexWrap:"wrap",gap:10,paddingLeft:14,marginTop:6,fontSize:10.5,color:P.muted}}>
+                    <span><span style={{display:"inline-block",width:9,height:9,background:"#aaa",borderRadius:2,marginRight:4}}/>A – IBEX</span>
+                    <span><span style={{display:"inline-block",width:9,height:9,background:P.blue,borderRadius:2,marginRight:4}}/>B – Óptima</span>
+                    <span><span style={{display:"inline-block",width:9,height:9,background:P.green,borderRadius:2,marginRight:4}}/>C – Refugio</span>
+                    <span><span style={{display:"inline-block",width:9,height:9,background:P.gold,borderRadius:2,marginRight:4}}/>Mi cartera</span>
+                  </div>
+                )}
               </div>
               {!allocOk && <div style={{marginTop:12,padding:12,background:P.red+"11",border:"1px solid "+P.red+"44",borderRadius:8,fontSize:13,color:P.red}}>⚠️ La cartera no suma 100%.</div>}
             </div>
@@ -468,7 +495,7 @@ export default function App() {
         )}
 
         {tab === "lifetime" && (
-          <div style={{display:"grid",gridTemplateColumns:"280px 1fr",gap:22}}>
+          <div style={{display:"grid",gridTemplateColumns:gridCols,gap:isMobile?16:22}}>
             {AllocPanel}
             <div>
               <div style={labelStyle}>Histórico completo · Ene 2005 – Mar 2026 (21 años)</div>
@@ -489,54 +516,78 @@ export default function App() {
                   };
                 });
 
-                const lastPt = ltChartAdj[ltChartAdj.length-1];
+                // Datos combinados nominal + real de las 3 carteras de referencia para el gráfico comparativo
+                const ltCombined = LIFETIME_PTS.map(pt => {
+                  const ipc = IPC_ES[pt.m] || 1.521;
+                  const defl = ipc0 / ipc;
+                  return {
+                    m: pt.m,
+                    A_nom: Math.round(pt.A * capital/1000000),
+                    B_nom: Math.round(pt.B * capital/1000000),
+                    C_nom: Math.round(pt.C * capital/1000000),
+                    A_real: Math.round(pt.A * capital/1000000 * defl),
+                    B_real: Math.round(pt.B * capital/1000000 * defl),
+                    C_real: Math.round(pt.C * capital/1000000 * defl),
+                  };
+                });
+
                 const ipcFinal = IPC_ES["Mar-26"];
                 const deflFinal = realMode ? (ipc0/ipcFinal) : 1;
                 const ltFinalAdj = Math.round(simLT.final * capital/1000000 * deflFinal);
                 const ltTotalAdj = +(((ltFinalAdj/capital)-1)*100).toFixed(1);
-                const cFinalAdj  = Math.round(4289000 * capital/1000000 * deflFinal);
                 const aFinalAdj  = Math.round(1521000 * capital/1000000 * deflFinal);
                 const aTotalAdj  = +(((aFinalAdj/capital)-1)*100).toFixed(1);
 
+                const legendWrapStyle = isMobile ? {fontSize:10,paddingTop:6} : undefined;
+
                 return (
                   <>
-                    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,flexWrap:"wrap"}}>
                       <span style={{fontSize:12,color:P.muted}}>Mostrar en:</span>
-                      {[{v:false,l:"Nominal"},{v:true,l:"Real (ajustado IPC España)"}].map(o => (
+                      {[{v:false,l:"Nominal"},{v:true,l:isMobile?"Real (IPC)":"Real (ajustado IPC España)"}].map(o => (
                         <button key={String(o.v)} onClick={() => setRealMode(o.v)}
                           style={{padding:"5px 14px",borderRadius:7,border:"1px solid "+(realMode===o.v?P.blue:P.border),background:realMode===o.v?P.blue:P.surface2,color:realMode===o.v?"#fff":P.text,cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:realMode===o.v?600:300}}>
                           {o.l}
                         </button>
                       ))}
-                      {realMode && <span style={{fontSize:11,color:P.muted,fontStyle:"italic"}}>€ de 2005 · IPC INE/Eurostat</span>}
+                      {realMode && !isMobile && <span style={{fontSize:11,color:P.muted,fontStyle:"italic"}}>€ de 2005 · IPC INE/Eurostat</span>}
                     </div>
 
-                    <div style={{display:"flex",gap:12,marginBottom:20,flexWrap:"wrap"}}>
-                      <KPI title={"Capital final (mi cartera)"+(realMode?" real":"")} value={fmt(ltFinalAdj)} good={ltFinalAdj>capital}/>
-                      <KPI title="Rentabilidad anualizada" value={fmtPct(simLT.annualReturn-(realMode?2.1:0))} good={(simLT.annualReturn-(realMode?2.1:0))>0} sub={realMode?"aprox. descontada inflación media":"nominal"}/>
-                      <KPI title={"Rentabilidad total"+(realMode?" real":"")} value={fmtPct(ltTotalAdj)} good={ltTotalAdj>0}/>
-                      <KPI title={"A – IBEX"+(realMode?" real":"")} value={fmtPct(aTotalAdj)} good={aTotalAdj>0} sub={realMode?"poder adquisitivo":"nominal"}/>
+                    <div style={{display:"flex",gap:isMobile?8:12,marginBottom:20,flexWrap:"wrap"}}>
+                      <KPI minWidth={kpiMinWidth} title={"Capital final"+(realMode?" real":"")} value={fmt(ltFinalAdj)} good={ltFinalAdj>capital}/>
+                      <KPI minWidth={kpiMinWidth} title="Rent. anualizada" value={fmtPct(simLT.annualReturn-(realMode?2.1:0))} good={(simLT.annualReturn-(realMode?2.1:0))>0} sub={realMode?"descontada inflación":"nominal"}/>
+                      <KPI minWidth={kpiMinWidth} title={"Rent. total"+(realMode?" real":"")} value={fmtPct(ltTotalAdj)} good={ltTotalAdj>0}/>
+                      <KPI minWidth={kpiMinWidth} title={"A – IBEX"+(realMode?" real":"")} value={fmtPct(aTotalAdj)} good={aTotalAdj>0} sub={realMode?"poder adquisitivo":"nominal"}/>
                     </div>
 
-                    <div style={cardStyle()}>
-                      <div style={{fontSize:12,color:P.muted,marginBottom:12}}>
-                        Evolución del capital 2005–2026 · {realMode?"valores reales en € de 2005 (deflactados con IPC)":"valores nominales"} · base = {fmt(capital)}
+                    <div style={cardStyle({padding:isMobile?"14px 8px 14px 0":20})}>
+                      <div style={{fontSize:12,color:P.muted,marginBottom:12,paddingLeft:isMobile?14:0}}>
+                        Mi cartera 2005–2026 · {realMode?"valores reales en € de 2005":"valores nominales"} · base = {fmt(capital)}
                       </div>
-                      <ResponsiveContainer width="100%" height={340}>
-                        <LineChart data={ltChartAdj}>
+                      <ResponsiveContainer width="100%" height={isMobile?280:340}>
+                        <LineChart data={ltChartAdj} margin={isMobile?{left:-15,right:8}:undefined}>
                           <CartesianGrid strokeDasharray="3 3" stroke={P.border}/>
-                          <XAxis dataKey="m" tick={{fill:P.muted,fontSize:11}}/>
-                          <YAxis tickFormatter={v => (v/1000000).toFixed(1)+"M"} tick={{fill:P.muted,fontSize:11}}/>
+                          <XAxis dataKey="m" tick={{fill:P.muted,fontSize:isMobile?8:11}} interval={isMobile?2:0}/>
+                          <YAxis tickFormatter={v => (v/1000000).toFixed(1)+"M"} tick={{fill:P.muted,fontSize:isMobile?9:11}}/>
                           <Tooltip formatter={(v,n) => [fmt(v),n]} contentStyle={tooltipStyle} labelStyle={{color:P.gold,fontWeight:600}}/>
-                          <Legend/>
-                          <ReferenceLine y={capital} stroke={P.border} strokeDasharray="4 4" label={{value:"Capital inicial",fill:P.muted,fontSize:10}}/>
-                          {realMode && <Line dataKey="IPC" name="Erosión inflación (coste vida)" stroke={P.red} strokeWidth={1.5} dot={false} strokeDasharray="6 3"/>}
+                          {!isMobile && <Legend/>}
+                          <ReferenceLine y={capital} stroke={P.border} strokeDasharray="4 4" label={isMobile?undefined:{value:"Capital inicial",fill:P.muted,fontSize:10}}/>
+                          {realMode && <Line dataKey="IPC" name="Erosión inflación" stroke={P.red} strokeWidth={1.5} dot={false} strokeDasharray="6 3"/>}
                           <Line dataKey="A" name="A – 100% IBEX" stroke="#aaa" strokeWidth={2} dot={false}/>
                           <Line dataKey="B" name="B – Óptima" stroke={P.blue} strokeWidth={2} dot={false}/>
                           <Line dataKey="C" name="C – Máx. Refugio" stroke={P.green} strokeWidth={2} dot={false}/>
                           <Line dataKey="Custom" name="Mi cartera" stroke={P.gold} strokeWidth={3} dot={false}/>
                         </LineChart>
                       </ResponsiveContainer>
+                      {isMobile && (
+                        <div style={{display:"flex",flexWrap:"wrap",gap:10,paddingLeft:14,marginTop:6,fontSize:10.5,color:P.muted}}>
+                          {realMode && <span><span style={{display:"inline-block",width:9,height:9,background:P.red,borderRadius:2,marginRight:4}}/>Inflación</span>}
+                          <span><span style={{display:"inline-block",width:9,height:9,background:"#aaa",borderRadius:2,marginRight:4}}/>A – IBEX</span>
+                          <span><span style={{display:"inline-block",width:9,height:9,background:P.blue,borderRadius:2,marginRight:4}}/>B – Óptima</span>
+                          <span><span style={{display:"inline-block",width:9,height:9,background:P.green,borderRadius:2,marginRight:4}}/>C – Refugio</span>
+                          <span><span style={{display:"inline-block",width:9,height:9,background:P.gold,borderRadius:2,marginRight:4}}/>Mi cartera</span>
+                        </div>
+                      )}
                     </div>
 
                     <div style={cardStyle({marginTop:16,background:realMode?"#f0f7ff":""+P.goldLt,border:"1px solid "+(realMode?P.blue+"44":P.gold+"44")})}>
@@ -552,6 +603,46 @@ export default function App() {
                           En 21 años (2005–2026), la <strong>Cartera A (100% IBEX)</strong> acumuló apenas un <strong>+52%</strong> nominal, frente al <strong>+329%</strong> de la Cartera C. La diferencia sobre 1 M€ supera los <strong>2,7 M€</strong>. Activa la vista real para ver el impacto de la inflación.
                         </p>
                       )}
+                    </div>
+
+                    <div style={{marginTop:24}}>
+                      <div style={labelStyle}>Evolución comparada · Carteras A, B y C · Nominal vs. Real</div>
+                      <div style={cardStyle({padding:isMobile?"14px 8px 14px 0":20})}>
+                        <div style={{fontSize:12,color:P.muted,marginBottom:12,paddingLeft:isMobile?14:0}}>
+                          Líneas sólidas = nominal · líneas discontinuas = real (descontando IPC España, € de 2005)
+                        </div>
+                        <ResponsiveContainer width="100%" height={isMobile?300:380}>
+                          <LineChart data={ltCombined} margin={isMobile?{left:-15,right:8}:undefined}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={P.border}/>
+                            <XAxis dataKey="m" tick={{fill:P.muted,fontSize:isMobile?8:11}} interval={isMobile?2:0}/>
+                            <YAxis tickFormatter={v => (v/1000000).toFixed(1)+"M"} tick={{fill:P.muted,fontSize:isMobile?9:11}}/>
+                            <Tooltip formatter={(v,n) => [fmt(v),n]} contentStyle={tooltipStyle} labelStyle={{color:P.gold,fontWeight:600}}/>
+                            {!isMobile && <Legend wrapperStyle={{fontSize:11}}/>}
+                            <ReferenceLine y={capital} stroke={P.border} strokeDasharray="4 4"/>
+                            <Line dataKey="A_nom"  name="A – IBEX (nominal)" stroke="#aaa" strokeWidth={2} dot={false}/>
+                            <Line dataKey="A_real" name="A – IBEX (real)"    stroke="#aaa" strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                            <Line dataKey="B_nom"  name="B – Óptima (nominal)" stroke={P.blue} strokeWidth={2} dot={false}/>
+                            <Line dataKey="B_real" name="B – Óptima (real)"    stroke={P.blue} strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                            <Line dataKey="C_nom"  name="C – Refugio (nominal)" stroke={P.green} strokeWidth={2} dot={false}/>
+                            <Line dataKey="C_real" name="C – Refugio (real)"    stroke={P.green} strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                          </LineChart>
+                        </ResponsiveContainer>
+                        {isMobile && (
+                          <div style={{display:"flex",flexWrap:"wrap",gap:8,paddingLeft:14,marginTop:8,fontSize:10,color:P.muted}}>
+                            <span><span style={{display:"inline-block",width:14,height:2,background:"#aaa",marginRight:4,verticalAlign:"middle"}}/>A nominal</span>
+                            <span><span style={{display:"inline-block",width:14,height:2,background:"#aaa",marginRight:4,verticalAlign:"middle",borderTop:"1.5px dashed #aaa"}}/>A real</span>
+                            <span><span style={{display:"inline-block",width:14,height:2,background:P.blue,marginRight:4,verticalAlign:"middle"}}/>B nominal</span>
+                            <span><span style={{display:"inline-block",width:14,height:2,background:P.blue,marginRight:4,verticalAlign:"middle",borderTop:"1.5px dashed "+P.blue}}/>B real</span>
+                            <span><span style={{display:"inline-block",width:14,height:2,background:P.green,marginRight:4,verticalAlign:"middle"}}/>C nominal</span>
+                            <span><span style={{display:"inline-block",width:14,height:2,background:P.green,marginRight:4,verticalAlign:"middle",borderTop:"1.5px dashed "+P.green}}/>C real</span>
+                          </div>
+                        )}
+                      </div>
+                      <div style={cardStyle({marginTop:14,background:P.surface2})}>
+                        <p style={{fontSize:12.5,lineHeight:1.7,color:P.muted,margin:0}}>
+                          La separación entre línea sólida (nominal) y discontinua (real) del mismo color es la inflación acumulada "comiéndose" la rentabilidad. Cuanto mayor la brecha entre ambas líneas de la Cartera A, mayor la pérdida silenciosa de poder adquisitivo pese a que el valor nominal en pantalla sigue subiendo.
+                        </p>
+                      </div>
                     </div>
                   </>
                 );
@@ -706,5 +797,3 @@ export default function App() {
     </div>
   );
 }
-
-
