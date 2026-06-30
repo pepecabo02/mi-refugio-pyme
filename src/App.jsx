@@ -6,9 +6,27 @@ import {
   AreaChart, Area
 } from "recharts";
 
-const styleEl = document.createElement("style");
-styleEl.textContent = "@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap');";
-document.head.appendChild(styleEl);
+// --- INYECCIÓN DE ESTILOS ANTI-MÁRGENES ---
+if (typeof document !== "undefined") {
+  if (!document.getElementById("refugio-global-styles")) {
+    const styleEl = document.createElement("style");
+    styleEl.id = "refugio-global-styles";
+    styleEl.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap');
+      html, body, #root, #__next, main {
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        overflow-x: hidden !important;
+      }
+      * {
+        box-sizing: border-box;
+      }
+    `;
+    document.head.appendChild(styleEl);
+  }
+}
 
 const P = {
   bg:"#f4f6fb", surface:"#ffffff", surface2:"#f0f3fa", border:"#dde2f0",
@@ -80,8 +98,6 @@ const CRISES = {
   },
 };
 
-// IPC acumulado España base 2005=1.000 (fuente: INE / Eurostat)
-// Cada valor = cuánto cuestan en ese año los mismos bienes que costaban 1€ en 2005
 const IPC_ES = {
   "2005":1.000,"2006":1.036,"2007":1.063,"2008":1.105,"2009":1.100,
   "2010":1.118,"2011":1.151,"2012":1.183,"2013":1.193,"2014":1.191,
@@ -207,20 +223,21 @@ const fmt = n => new Intl.NumberFormat("es-ES",{style:"currency",currency:"EUR",
 const fmtPct = n => (n>0?"+":"")+Number(n).toFixed(1)+"%";
 const fmtNum = n => new Intl.NumberFormat("es-ES").format(n);
 const cardStyle = (extra) => Object.assign({background:P.surface,border:"1px solid "+P.border,borderRadius:14,padding:20}, extra);
-const labelStyle = {fontSize:11,letterSpacing:3,color:P.gold,textTransform:"uppercase",marginBottom:14};
+const labelStyle = {fontSize:14,letterSpacing:2,color:P.gold,textTransform:"uppercase",marginBottom:16, fontWeight:700};
 
 function useIsMobile() {
   const [isMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 760 : false);
   return isMobile;
 }
 
+// KPI ACTUALIZADO: Centrado vertical y cifras más grandes
 function KPI({title, value, sub, good, minWidth}) {
   const color = good === undefined ? P.text : good ? P.green : P.red;
   return (
-    <div style={cardStyle({textAlign:"center",flex:1,minWidth:minWidth||140,padding:"14px 12px"})}>
-      <div style={{fontSize:10.5,color:P.muted,marginBottom:6,lineHeight:1.3}}>{title}</div>
-      <div style={{fontSize:18,fontWeight:700,color,wordBreak:"break-word"}}>{value}</div>
-      {sub && <div style={{fontSize:10.5,color:P.muted,marginTop:4}}>{sub}</div>}
+    <div style={cardStyle({display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", textAlign:"center", flex:1, minWidth:minWidth||140, padding:"18px 12px", minHeight:110})}>
+      <div style={{fontSize:13,color:P.muted,marginBottom:8,lineHeight:1.3}}>{title}</div>
+      <div style={{fontSize:26,fontWeight:800,color,wordBreak:"break-word"}}>{value}</div>
+      {sub && <div style={{fontSize:12,color:P.muted,marginTop:6}}>{sub}</div>}
     </div>
   );
 }
@@ -274,6 +291,8 @@ export default function App() {
   const setA = (id, v) => setAlloc(prev => ({...prev, [id]: +v}));
   const scored  = useMemo(() => computeScores(weights), [weights]);
   const wTotal  = Object.values(weights).reduce((a,b) => a+b, 0);
+  const wTotalOk = wTotal === 100;
+
   const simCrisis  = useMemo(() => simulateCrisis(alloc, crisis),  [alloc, crisis]);
   const simLT      = useMemo(() => simulateLifetime(alloc),        [alloc]);
   const simForecast = useMemo(() => generateForecast(alloc, horizon), [alloc, horizon]);
@@ -302,8 +321,9 @@ export default function App() {
 
   const gridCols = isMobile ? "1fr" : "320px 1fr";
   const kpiMinWidth = isMobile ? "calc(50% - 6px)" : 140;
-  const headerPad = isMobile ? "16px 14px 0" : "22px 32px 0";
-  const bodyPad = isMobile ? "18px 12px" : "28px 32px";
+  
+  const headerPad = isMobile ? "20px 16px 0" : "32px 48px 0";
+  const bodyPad = isMobile ? "18px 12px" : "28px 48px";
 
   const AllocPanel = (
     <div style={cardStyle({minWidth:isMobile?"auto":260})}>
@@ -340,16 +360,20 @@ export default function App() {
 
   return (
     <div style={{fontFamily:"'Nunito',system-ui,sans-serif",background:P.bg,color:P.text,minHeight:"100vh",fontWeight:300}}>
+      
+      {/* HEADER */}
       <div style={{background:P.surface,borderBottom:"1px solid "+P.border,padding:headerPad}}>
-        <div style={{maxWidth:1180,margin:"0 auto"}}>
-          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-            <div>
-              <div style={{fontSize:isMobile?9:10,letterSpacing:isMobile?2:4,color:P.gold,textTransform:"uppercase",marginBottom:5}}>Herramienta de Gestión de Tesorería · PYME</div>
-              <h1 style={{margin:0,fontSize:isMobile?18:24,fontWeight:600,color:P.text,lineHeight:1.25}}>Refugio PYME <span style={{color:P.gold}}>·</span> Diversificación Corporativa</h1>
-              {!isMobile && <p style={{margin:"5px 0 0",fontSize:12,color:P.muted}}>Análisis 2005–Mar 2026 · 10 activos · 3 episodios de crisis · proyección Monte Carlo</p>}
+        <div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:isMobile?16:24}}>
+            
+            <div style={{textAlign:"left", flex:"1", paddingRight:isMobile?0:16}}>
+              <div style={{fontSize:isMobile?10:13,letterSpacing:isMobile?3:5,color:P.gold,textTransform:"uppercase",marginBottom:8,fontWeight:600}}>Herramienta de Gestión de Tesorería · PYME</div>
+              <h1 style={{margin:0,fontSize:isMobile?22:32,fontWeight:800,color:P.text,lineHeight:1.2, textTransform:"uppercase", letterSpacing:"1px", wordWrap:"break-word"}}>Refugio PYME <span style={{color:P.gold}}>·</span> Diversificación Corporativa</h1>
+              {!isMobile && <p style={{margin:"10px 0 0",fontSize:14,color:P.muted, letterSpacing:"0.5px"}}>Análisis 2005–Mar 2026 · 10 activos · 3 episodios de crisis · proyección Monte Carlo</p>}
             </div>
-            <div style={{background:P.surface2,border:"1px solid "+P.border,borderRadius:10,padding:"8px 14px",textAlign:"center",flex:isMobile?"1 1 100%":"none"}}>
-              <div style={{fontSize:10,color:P.muted,letterSpacing:2,marginBottom:3}}>CAPITAL BASE (€)</div>
+
+            <div style={{background:P.surface2,border:"1px solid "+P.border,borderRadius:14,padding:"22px 16px",textAlign:"center",flex:isMobile?"1 1 100%":"0 0 auto", minWidth:isMobile?"100%":"200px"}}>
+              <div style={{fontSize:12,color:P.muted,letterSpacing:2,marginBottom:6,fontWeight:600}}>CAPITAL BASE (€)</div>
               <input
                 type="text"
                 inputMode="numeric"
@@ -358,32 +382,38 @@ export default function App() {
                   const raw = e.target.value.replace(/[^\d]/g, "");
                   setCapital(raw === "" ? 0 : +raw);
                 }}
-                style={{background:"none",border:"none",color:P.gold,fontSize:isMobile?18:20,fontWeight:700,width:isMobile?"100%":148,textAlign:"center",fontFamily:"inherit",outline:"none"}}/>
+                style={{background:"none",border:"none",color:P.gold,fontSize:isMobile?26:28,fontWeight:800,width:"100%",textAlign:"center",fontFamily:"inherit",outline:"none"}}/>
             </div>
           </div>
-          <div style={{display:"flex",gap:0,marginTop:isMobile?12:18,overflowX:"auto",WebkitOverflowScrolling:"touch",paddingBottom:isMobile?4:0}}>
+
+          <div style={{display:"flex",gap:0,marginTop:isMobile?16:24,overflowX:"auto",WebkitOverflowScrolling:"touch",paddingBottom:isMobile?4:0}}>
             {tabs.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)} style={{
                 background:"transparent", color:tab===t.id?P.gold:P.muted,
                 border:"none", borderBottom:"3px solid "+(tab===t.id?P.gold:"transparent"),
-                padding:isMobile?"8px 10px":"14px 22px",cursor:"pointer",fontFamily:"inherit",fontSize:isMobile?11.5:17,
+                padding:isMobile?"8px 10px":"16px 24px",cursor:"pointer",fontFamily:"inherit",fontSize:isMobile?11.5:16,
                 fontWeight:tab===t.id?700:500,whiteSpace:"nowrap",transition:"all .15s",flexShrink:isMobile?0:1,
-                letterSpacing:isMobile?0:0.5,textTransform:isMobile?"none":"uppercase",flex:isMobile?"none":1,textAlign:"center",
+                letterSpacing:isMobile?0:1,textTransform:isMobile?"none":"uppercase",flex:isMobile?"none":1,textAlign:"center",
               }}>{isMobile?t.label:t.labelUpper}</button>
             ))}
           </div>
         </div>
       </div>
 
-      <div style={{maxWidth:1180,margin:"0 auto",padding:bodyPad}}>
+      {/* CUERPO PRINCIPAL */}
+      <div style={{padding:bodyPad}}>
 
         {tab === "scoring" && (
           <div style={{display:"grid",gridTemplateColumns:gridCols,gap:isMobile?16:22}}>
             <div style={cardStyle()}>
               <div style={labelStyle}>Ponderaciones del modelo</div>
-              <div style={{fontSize:11,color:P.muted,marginBottom:14}}>
-                Total: <span style={{color:wTotal===100?P.green:P.red,fontWeight:600}}>{wTotal}%</span>
+              
+              <div style={{marginBottom:18,padding:"10px 14px",background:P.surface2,borderRadius:10,textAlign:"center",border:"1px solid "+(wTotalOk?P.green+"44":P.red+"44")}}>
+                <div style={{fontSize:11,color:P.muted,marginBottom:3}}>Suma de ponderaciones</div>
+                <div style={{fontSize:26,fontWeight:700,color:wTotalOk?P.green:P.red}}>{wTotal}%</div>
+                {!wTotalOk && <div style={{fontSize:11,color:P.red}}>Debe sumar 100% para ser exacto</div>}
               </div>
+
               {Object.keys(WEIGHT_LABELS).map(k => (
                 <div key={k} style={{marginBottom:12}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
@@ -401,26 +431,33 @@ export default function App() {
               </button>
             </div>
             <div>
-              <div style={labelStyle}>Ranking · haz clic en un activo para ver su perfil</div>
+              {/* RANKING TÍTULO CON SUBTÍTULO MÁS PEQUEÑO */}
+              <div style={labelStyle}>
+                Ranking <span style={{fontSize:11, fontWeight:400, color:P.muted, textTransform:"none", letterSpacing:0}}>· haz clic en un activo para ver su perfil</span>
+              </div>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
                 {scored.map((a,i) => (
                   <div key={a.id}>
                     <div onClick={() => setShowRadar(showRadar===a.id?null:a.id)}
-                      style={cardStyle({padding:isMobile?"10px 12px":"12px 16px",cursor:"pointer",display:"grid",gridTemplateColumns:isMobile?"28px 1fr auto":"36px 1fr auto",alignItems:"center",gap:isMobile?8:12,borderLeft:"4px solid "+(CAT_COLORS[a.cat]||P.muted),boxShadow:showRadar===a.id?"0 0 0 2px "+P.gold+"55":"none"})}>
-                      <div style={{fontSize:isMobile?16:20,fontWeight:700,color:i<3?P.gold:P.border,textAlign:"center"}}>{i+1}</div>
-                      <div>
-                        <span style={{fontWeight:600,fontSize:isMobile?12.5:14,marginRight:6}}>{a.flag?a.flag+" ":""}{a.name}</span><Tag cat={a.cat}/>
-                        {!isMobile && <div style={{fontSize:11,color:P.muted,marginTop:3}}>
+                      style={cardStyle({padding:isMobile?"14px 16px":"18px 24px",cursor:"pointer",display:"grid",gridTemplateColumns:isMobile?"32px 1fr auto":"44px 1fr auto",alignItems:"center",gap:isMobile?10:16,borderLeft:"4px solid "+(CAT_COLORS[a.cat]||P.muted),boxShadow:showRadar===a.id?"0 0 0 2px "+P.gold+"55":"none"})}>
+                      
+                      <div style={{fontSize:isMobile?18:24,fontWeight:800,color:i<3?P.gold:P.border,textAlign:"left"}}>{i+1}</div>
+                      
+                      <div style={{textAlign:"left"}}>
+                        <span style={{fontWeight:700,fontSize:isMobile?16:20,letterSpacing:"2px",marginRight:12}}>{a.flag?a.flag+" ":""}{a.name}</span>
+                        <Tag cat={a.cat}/>
+                        {!isMobile && <div style={{fontSize:12,color:P.muted,marginTop:6}}>
                           Corr: {a.corr.toFixed(2)} · Sharpe: {a.sharpe.toFixed(2)} · Vol: {a.vol.toFixed(1)}% · Drawdown: {a.drawdown}%
                         </div>}
                       </div>
-                      <div style={{background:(a.computedScore>=7?P.green:a.computedScore>=5?P.gold:P.red)+"18",color:a.computedScore>=7?P.green:a.computedScore>=5?P.gold:P.red,border:"1px solid "+(a.computedScore>=7?P.green:a.computedScore>=5?P.gold:P.red)+"44",borderRadius:7,padding:isMobile?"3px 7px":"3px 10px",fontSize:isMobile?12:13,fontWeight:700}}>
+
+                      <div style={{background:(a.computedScore>=7?P.green:a.computedScore>=5?P.gold:P.red)+"18",color:a.computedScore>=7?P.green:a.computedScore>=5?P.gold:P.red,border:"1px solid "+(a.computedScore>=7?P.green:a.computedScore>=5?P.gold:P.red)+"44",borderRadius:7,padding:isMobile?"4px 8px":"6px 14px",fontSize:isMobile?13:15,fontWeight:800}}>
                         {a.computedScore.toFixed(2)}
                       </div>
                     </div>
                     {showRadar===a.id && (
                       <div style={cardStyle({borderTop:"none",borderTopLeftRadius:0,borderTopRightRadius:0,borderColor:P.gold+"44"})}>
-                        <ResponsiveContainer width="100%" height={isMobile?180:200}>
+                        <ResponsiveContainer width="100%" height={isMobile?180:240}>
                           <RadarChart data={Object.keys(WEIGHT_LABELS).map(k => {
                             const vals = ASSETS.map(x => x[k]);
                             const mn = Math.min(...vals), mx = Math.max(...vals);
@@ -429,7 +466,7 @@ export default function App() {
                             return {subject:WEIGHT_LABELS[k].split(" ")[0], value:+norm.toFixed(1), fullMark:10};
                           })}>
                             <PolarGrid stroke={P.border}/>
-                            <PolarAngleAxis dataKey="subject" tick={{fill:P.muted,fontSize:isMobile?8:10}}/>
+                            <PolarAngleAxis dataKey="subject" tick={{fill:P.muted,fontSize:isMobile?8:11}}/>
                             <Radar dataKey="value" stroke={P.gold} fill={P.gold} fillOpacity={0.2}/>
                           </RadarChart>
                         </ResponsiveContainer>
@@ -446,17 +483,19 @@ export default function App() {
           <div style={{display:"grid",gridTemplateColumns:gridCols,gap:isMobile?16:22}}>
             <div style={{display:"flex",flexDirection:"column",gap:16}}>
               {AllocPanel}
-              <div style={cardStyle()}>
-                <div style={labelStyle}>Seleccionar crisis</div>
+            </div>
+            <div>
+              {/* SELECTOR DE CRISIS HORIZONTAL */}
+              <div style={labelStyle}>Seleccionar crisis</div>
+              <div style={{display:"flex", gap:isMobile?8:12, marginBottom:24, flexWrap:"wrap"}}>
                 {Object.entries(CRISES).map(([k,cr]) => (
                   <button key={k} onClick={() => setCrisis(k)}
-                    style={{width:"100%",marginBottom:7,background:crisis===k?P.gold:P.surface2,color:crisis===k?"#fff":P.text,border:"1px solid "+(crisis===k?P.gold:P.border),borderRadius:9,padding:"9px 14px",cursor:"pointer",fontSize:13,textAlign:"left",fontFamily:"inherit",fontWeight:crisis===k?600:300}}>
+                    style={{flex:1, minWidth:isMobile?"100%":"auto", background:crisis===k?P.gold:P.surface2,color:crisis===k?"#fff":P.text,border:"1px solid "+(crisis===k?P.gold:P.border),borderRadius:9,padding:"12px 14px",cursor:"pointer",fontSize:14,textAlign:"center",fontFamily:"inherit",fontWeight:crisis===k?700:500, transition:"all .2s"}}>
                     {cr.label}
                   </button>
                 ))}
               </div>
-            </div>
-            <div>
+
               <div style={labelStyle}>Resultado · {c.label}</div>
               <div style={{display:"flex",gap:isMobile?8:12,marginBottom:20,flexWrap:"wrap"}}>
                 <KPI minWidth={kpiMinWidth} title="Valor final (mi cartera)" value={fmt(simCrisis.final*capital/1000000)} good={simCrisis.final>=1000000}/>
@@ -516,7 +555,6 @@ export default function App() {
                   };
                 });
 
-                // Datos combinados nominal + real de las 3 carteras de referencia para el gráfico comparativo
                 const ltCombined = LIFETIME_PTS.map(pt => {
                   const ipc = IPC_ES[pt.m] || 1.521;
                   const defl = ipc0 / ipc;
@@ -537,8 +575,6 @@ export default function App() {
                 const ltTotalAdj = +(((ltFinalAdj/capital)-1)*100).toFixed(1);
                 const aFinalAdj  = Math.round(1521000 * capital/1000000 * deflFinal);
                 const aTotalAdj  = +(((aFinalAdj/capital)-1)*100).toFixed(1);
-
-                const legendWrapStyle = isMobile ? {fontSize:10,paddingTop:6} : undefined;
 
                 return (
                   <>
@@ -652,7 +688,7 @@ export default function App() {
         )}
 
         {tab === "forecast" && (
-          <div style={{display:"grid",gridTemplateColumns:"280px 1fr",gap:22}}>
+          <div style={{display:"grid",gridTemplateColumns:gridCols,gap:22}}>
             <div style={{display:"flex",flexDirection:"column",gap:16}}>
               {AllocPanel}
               <div style={cardStyle()}>
@@ -769,7 +805,7 @@ export default function App() {
         )}
 
         {tab === "guide" && (
-          <div style={{maxWidth:760}}>
+          <div style={{maxWidth:800, margin:"0 auto"}}>
             <div style={labelStyle}>Guía de uso para directores financieros</div>
             {[
               {n:"01",title:"¿Qué es el home bias y por qué es un riesgo?",body:"La mayoría de las PYMEs españolas concentran su tesorería en activos domésticos (depósitos, IBEX), acumulando una doble exposición al ciclo económico nacional. Cuando la economía española empeora, el negocio sufre y la cartera de inversión cae simultáneamente."},
